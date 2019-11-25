@@ -207,7 +207,7 @@ class XLNetDataset(Dataset):
                     passage = passage[:-diff]
                     passage_no_unk = passage_no_unk[:-diff]
         if answer_start not in range(0,512) or answer_end not in range(0,512) or \
-           answer_start >= len(passage) or answer_end >= len(passage):
+           answer_start >= len(passage) or answer_end >= len(passage) or op_type not in range(0,5):
             answer_start = answer_end = op_type = -100
 
         passage.append(self.tokenizer.sep_token)
@@ -332,8 +332,8 @@ if __name__ == '__main__':
 
     # Config
     lr = 2e-5
-    batch_size = 1
-    accumulate_batch_size = 1
+    batch_size = 4
+    accumulate_batch_size = 32
     
     assert accumulate_batch_size % batch_size == 0
     update_stepsize = accumulate_batch_size // batch_size
@@ -362,9 +362,10 @@ if __name__ == '__main__':
             batch = (tensor.cuda(device) for tensor in batch)
             input_ids, attention_mask, token_type_ids, cls_index, start_positions, end_positions, op_types = batch
             model.train()
-            loss = model(input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids, cls_index=cls_index,
-                            start_positions=start_positions, end_positions=end_positions, op_types=op_types)[0]
-            loss.backward()
+            if op_types.max() >= 0:
+                loss = model(input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids, cls_index=cls_index,
+                             start_positions=start_positions, end_positions=end_positions, op_types=op_types)[0]
+                loss.backward()
 
             step += 1
             print('step %d | Training...\r' % step, end='')
