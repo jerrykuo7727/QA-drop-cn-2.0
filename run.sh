@@ -6,9 +6,10 @@ stage=2
 use_gpu=cuda:1
 
 model=xlnet  # (bert|xlnet)
-model_path=/home/M10815022/Models/xlnet-base-chinese
-save_path=./models/xlnet
+model_path=./models/xlnet_op_base
+save_path=./models/xlnet_op
 
+train_datasets="DRCD_train DRCD_dev DRCD_test Lee_train Lee_dev Lee_test Kaggle_train Kaggle_dev Kaggle_test ASR_train ASR_dev ASR_test FGC_release_A_train"
 
 if [ $stage -le 0 ]; then
   echo "==================================================="
@@ -34,8 +35,9 @@ if [ $stage -le 1 ]; then
     done
   done
   $python3_cmd scripts/prepare_${model}_drop_data.py $model_path || exit 1
-  $python3_cmd scripts/prepare_${model}_fgc_data.py $model_path dev FGC_release_A_dev || exit 1
-  $python3_cmd scripts/prepare_${model}_fgc_data.py $model_path test FGC_release_A_test || exit 1
+  $python3_cmd scripts/prepare_${model}_fgc_data.py $model_path train $train_datasets || exit 1
+  #$python3_cmd scripts/prepare_${model}_fgc_data.py $model_path dev FGC_release_A_dev || exit 1
+  #$python3_cmd scripts/prepare_${model}_fgc_data.py $model_path test FGC_release_A_test || exit 1
 fi
 
 
@@ -47,5 +49,5 @@ if [ $stage -le 2 ]; then
     echo "'$save_path' already exists! Please remove it and try again." #; exit 1
   fi
   mkdir -p $save_path
-  $python3_cmd scripts/train_${model}.py $use_gpu $model_path $save_path
+  $python3_cmd scripts/train_${model}_op.py $use_gpu $model_path $save_path
 fi

@@ -364,11 +364,11 @@ if __name__ == '__main__':
             p_tokens = tokenizer.tokenize(raw_passage)
             p_tokens_no_unk = p_tokens
 
-            with open('data/train/passage/%s' % (PID), 'w') as f:
+            with open('data/%s/passage/DROP-%s' % (split, PID), 'w') as f:
                 assert p_tokens == ' '.join(p_tokens).split(' ')
                 f.write(' '.join(p_tokens))
 
-            with open('data/train/passage_no_unk/%s' % (PID), 'w') as f:
+            with open('data/%s/passage_no_unk/DROP-%s' % (split, PID), 'w') as f:
                 assert p_tokens_no_unk == ' '.join(p_tokens_no_unk).split(' ')
                 f.write(' '.join(p_tokens_no_unk))
 
@@ -418,15 +418,15 @@ if __name__ == '__main__':
                 # Save processed data
                 if answer_start < 0: continue
                 QID = QA['query_id']
-                with open('data/train/question/%s|%s' % (PID, QID), 'w') as f:
+                with open('data/%s/question/DROP-%s|%s' % (split, PID, QID), 'w') as f:
                     assert q_tokens  == ' '.join(q_tokens).split(' ')
                     f.write(' '.join(q_tokens))
-                with open('data/train/question_no_unk/%s|%s' % (PID, QID), 'w') as f:
+                with open('data/%s/question_no_unk/DROP-%s|%s' % (split, PID, QID), 'w') as f:
                     assert q_tokens_no_unk == ' '.join(q_tokens_no_unk).split(' ')
                     f.write(' '.join(q_tokens_no_unk))
-                with open('data/train/answer/%s|%s' % (PID, QID), 'w') as f:
+                with open('data/%s/answer/DROP-%s|%s' % (split, PID, QID), 'w') as f:
                     f.write('%s' % raw_answer)
-                with open('data/train/span/%s|%s' % (PID, QID), 'w') as f:
+                with open('data/%s/span/DROP-%s|%s' % (split, PID, QID), 'w') as f:
                     f.write('%d %d %d' % (op_type, answer_start, answer_end))
 
             print('passage: %d/%d\r' % (i, len(data)), end='')

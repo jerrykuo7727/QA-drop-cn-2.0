@@ -66,11 +66,11 @@ if __name__ == '__main__':
                     QAs.append(processed_QA)
 
             # Save processed data
-            with open('data/%s/passage/%s' % (split, PID), 'w') as f:
+            with open('data/%s/passage/%s-%s' % (split, dataset, PID), 'w') as f:
                 assert passage == ' '.join(passage).split(' ')
                 f.write(' '.join(passage))
 
-            with open('data/%s/passage_no_unk/%s' % (split, PID), 'w') as f:
+            with open('data/%s/passage_no_unk/%s-%s' % (split, dataset, PID), 'w') as f:
                 assert passage_no_unk == ' '.join(passage_no_unk).split(' ')
                 f.write(' '.join(passage_no_unk))
 
@@ -81,17 +81,17 @@ if __name__ == '__main__':
                 answer_start = QA['answer_start']
                 answer_end = QA['answer_end']
                 QID = QA['id']
-                with open('data/%s/question/%s|%s' % (split, PID, QID), 'w') as f:
+                with open('data/%s/question/%s-%s|%s' % (split, dataset, PID, QID), 'w') as f:
                     assert question  == ' '.join(question).split(' ')
                     f.write(' '.join(question))
-                with open('data/%s/question_no_unk/%s|%s' % (split, PID, QID), 'w') as f:
+                with open('data/%s/question_no_unk/%s-%s|%s' % (split, dataset, PID, QID), 'w') as f:
                     assert question_no_unk  == ' '.join(question_no_unk).split(' ')
                     f.write(' '.join(question_no_unk))
-                with open('data/%s/answer/%s|%s' % (split, PID, QID), 'w') as f:
+                with open('data/%s/answer/%s-%s|%s' % (split, dataset, PID, QID), 'w') as f:
                     for answer in answers:
                         f.write('%s\n' % answer)
-                with open('data/%s/span/%s|%s' % (split, PID, QID), 'w') as f:
-                    f.write('%d %d' % (answer_start, answer_end))
+                with open('data/%s/span/%s-%s|%s' % (split, dataset, PID, QID), 'w') as f:
+                    f.write('0 %d %d' % (answer_start, answer_end))
 
             print('%s: %d/%d (%.2f%%) \r' % (dataset, i, passage_count, 100*i/passage_count), end='')
         print('\nimpossible_questions: %d' % impossible_questions)
