@@ -63,7 +63,11 @@ def get_answer_atype(A):
     if len(A['spans']) == 1:
         return A['spans'][0], 0
     elif A['number']:
-        return A['number'], 1
+        num = float(A['number'])
+        if num % 1 == 0:  # int
+            return str(int(num)), 1
+        else:  # float
+            return str(round(num, 1)), 1
     elif 'year' in A['date'] and len(A['date']['year']) > 0 or \
          'month' in A['date'] and len(A['date']['month']) > 0 or \
          'day' in A['date'] and len(A['date']['day']) > 0:
@@ -148,7 +152,7 @@ def find_all(par_re, full_re, tokens):
     return found_strings
 
 def find_arith_ind_op(p_tokens, answer):
-    ans_num = float(answer)
+    ans_num = round(float(answer), 1)
     all_nums = find_all(num_par_re, num_full_re, p_tokens)
     all_nums = [(i, float(num_str.replace(',', ''))) for i, num_str in all_nums]
     for si, src_pair in enumerate(all_nums):
@@ -156,12 +160,20 @@ def find_arith_ind_op(p_tokens, answer):
         for ti, tgt_pair in enumerate(all_nums):
             if si == ti: continue
             tgt_ind, tgt_num = tgt_pair
-            for op_type in (0,1):
-                new_num = src_num + (op_type*-2+1) * tgt_num 
 
-                # demo print
-                sign = '+' if op_type == 0 else '-'
-                if new_num == ans_num:
+            for op_type in (0,1,2,3):
+                if op_type == 0:
+                    new_num = src_num + tgt_num 
+                elif op_type == 1:
+                    new_num = src_num - tgt_num
+                elif op_type == 2:
+                    new_num = src_num * tgt_num
+                elif op_type == 3 :
+                    if tgt_num == 0: 
+                        continue
+                    new_num = src_num / tgt_num
+                    
+                if round(new_num, 1) == ans_num:
                     return src_ind, tgt_ind, op_type
     return -1, -1, -1
 
@@ -410,10 +422,17 @@ if __name__ == '__main__':
                 if atype == 2 and answer_start < 0:
                     impos_dd += 1
                     answer_start, answer_end, sign_type = find_date_dur_ind_op(p_tokens_no_unk, raw_answer)
-                    op_type = 3 + sign_type
+                    op_type = 5 + sign_type
                     if answer_start >= 0:
                         n_datedur += 1
                     else: continue
+
+                #### FILTER ####
+                if op_type not in (1,2,3,4):
+                    continue
+                else:
+                    op_type -= 1
+                ################
 
                 # Save processed data
                 if answer_start < 0: continue

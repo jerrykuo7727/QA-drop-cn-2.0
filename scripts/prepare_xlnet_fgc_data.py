@@ -40,6 +40,12 @@ if __name__ == '__main__':
             # QA pairs
             QAs = []
             for QA in PQA['QUESTIONS']:
+
+                #### FILTER ####
+                if not (QA['AMODE'] == 'Arithmetic-Operations'):
+                    continue
+                ################
+
                 processed_QA = {}
                 raw_question = QA['QTEXT'].strip()
                 question = tokenizer.tokenize(raw_question)
@@ -64,6 +70,9 @@ if __name__ == '__main__':
                     processed_QA['answer_end'] = answer_end
                     processed_QA['id'] = QA['QID']
                     QAs.append(processed_QA)
+
+            if len(QAs) == 0:
+                continue
 
             # Save processed data
             with open('data/%s/passage/%s-%s' % (split, dataset, PID), 'w') as f:

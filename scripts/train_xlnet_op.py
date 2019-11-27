@@ -98,20 +98,22 @@ def validate_dataset(model, split, tokenizer):
             outputs = model(input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids, labels=op_types)
         y_true = np.hstack([y_true, op_types.cpu().numpy()])
         y_pred = np.hstack([y_pred, outputs[1].argmax(-1).cpu().numpy()])
-        print('%d/%d\r' % (i, n_batch), end='')
     del dataloader
-    micro_f1 = f1_score(y_true, y_pred, labels=[0,1,2,3,4], average='micro')
+    labels = [n for n in range(int(y_true.max())+1)]
+    total_acc = accuracy_score(y_true, y_pred)
     accuracies = []
-    for n in range(5):
+    for n in range(len(labels)):
         ind = np.where(y_true == n)
         accuracies.append(accuracy_score(y_true[ind], y_pred[ind]))
-    return micro_f1, accuracies
+    return total_acc, accuracies
 
 def validate(model, tokenizer):
-    val_micro_f1, val_accuracies = validate_dataset(model, 'dev', tokenizer)
-    print(' (dev) | micro_f1=%.3f | 0_acc=%.3f, 1_acc=%.3f, 2_acc=%.3f, 3_acc=%.3f, 4_acc=%.3f' \
-        % (100*val_micro_f1, *(100*acc for acc in val_accuracies)))
-    return val_micro_f1
+    val_total_acc, val_accuracies = validate_dataset(model, 'dev', tokenizer)
+    message = '(dev) | total_acc=%.3f | ' % (100*val_total_acc)
+    for n, acc in enumerate(val_accuracies):
+        message += '%d_acc=%.3f, ' % (n, 100*acc)
+    print(message)
+    return val_total_acc
 
 
 if __name__ == '__main__':
@@ -171,7 +173,7 @@ if __name__ == '__main__':
                 else:
                     patience += 1
 
-            if patience > 20 or step >= 200000:
+            if patience > 5 or step >= 200000:
                 print('Finish training.')
                 save_path = join(sys.argv[3], 'op_finetune.ckpt')
                 torch.save(best_state_dict, save_path)
