@@ -6,8 +6,8 @@ stage=2
 use_gpu=cuda:1  #cuda:2
 
 model=xlnet  # (bert|xlnet)
-model_path=./models/xlnet_arith_op_base
-save_path=./models/xlnet_arith_op_valacc
+model_path=/home/M10815022/Models/xlnet-base-chinese
+save_path=./models/xlnet_arith
 
 
 if [ $stage -le 0 ]; then
@@ -46,5 +46,5 @@ if [ $stage -le 2 ]; then
     echo "'$save_path' already exists! Please remove it and try again."; exit 1
   fi
   mkdir -p $save_path
-  $python3_cmd scripts/train_${model}_op.py $use_gpu $model_path $save_path
+  $python3_cmd scripts/train_${model}_arith.py $use_gpu $model_path $save_path
 fi

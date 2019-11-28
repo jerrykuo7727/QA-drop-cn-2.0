@@ -54,7 +54,7 @@ num_match_re = re.compile('\d+(,\d+)*(\.\d+){0,1}')
 num_re = re.compile('(\d+|(零|一|二|三|四|五|六|七|八|九|十|百|千|万)+)')
 
 tn = TimeNormalizer()
-tokenizer = XLNetTokenizer.from_pretrained(sys.argv[1])
+tokenizer = XLNetTokenizer.from_pretrained('/home/M10815022/Models/xlnet-base-chinese')
 
 
 # Lots of functions and functions
@@ -151,6 +151,37 @@ def find_all(par_re, full_re, tokens):
             found_strings.append((cursor, full_match.group()))
     return found_strings
 
+def find_all_range(tokenizer, par_re, full_re, tokens):
+    assert '' not in tokens
+    cursor = 0
+    cand_tokens = []
+    found_strings = []
+    for i, token in enumerate(tokens):
+        cand_string = tokenizer.convert_tokens_to_string(cand_tokens + [token]).replace(' ', '')
+        match = par_re.search(cand_string)
+        if not match:
+            if cand_tokens:
+                cand_string = tokenizer.convert_tokens_to_string(cand_tokens).replace(' ', '')
+                full_match = full_re.search(cand_string)
+                if full_match:
+                    found_strings.append((cursor, cursor+len(cand_tokens), full_match.group()))
+                cand_tokens = []
+                if par_re.match(token):
+                    cand_tokens.append(token)
+                    cursor = i
+                else:
+                    cursor = i + 1
+            else:
+                cursor = i + 1
+        else:
+            cand_tokens.append(token)
+    if cand_tokens:
+        cand_string = tokenizer.convert_tokens_to_string(cand_tokens).replace(' ', '')
+        full_match = full_re.search(cand_string)
+        if full_match:
+            found_strings.append((cursor, cursor+len(cand_tokens), full_match.group()))
+    return found_strings
+
 def find_arith_ind_op(p_tokens, answer):
     ans_num = round(float(answer), 1)
     all_nums = find_all(num_par_re, num_full_re, p_tokens)
@@ -243,16 +274,52 @@ def find_date_dur_ind_op(p_tokens, answer):
                     return date_ind, dur_ind, op_type
     return -1, -1, -1
 
-def arithmetic_op(tokenizer, num_match_re, all_tokens, start_ind, end_ind, plus):
+def arithmetic_op(tokenizer, num_par_re, num_full_re, num_match_re, all_tokens, start_ind, end_ind, op):
     try:
-        start_cand = tokenizer.convert_tokens_to_string(all_tokens[start_ind:]).replace(' ', '')
-        start_match = num_match_re.search(start_cand).group()  
-        end_cand = tokenizer.convert_tokens_to_string(all_tokens[end_ind:]).replace(' ', '')
-        end_match = num_match_re.search(end_cand).group()
-
+        start_dist, start_cand, start_num_str = 1000, None, None
+        end_dist, end_cand, end_num_str = 1000, None, None
+        all_nums = find_all_range(tokenizer, num_par_re, num_full_re, all_tokens)
+        for i, pair in enumerate(all_nums):
+            num_start, num_end, num_str = pair
+            # Start
+            if start_ind in range(num_start, num_end):
+                start_num_str = num_str
+                if end_num_str:
+                    break
+            elif start_ind < num_start and num_start - start_ind < start_dist:
+                start_dist = num_start - start_ind
+                start_cand = num_str
+            # End
+            if end_ind in range(num_start, num_end):
+                end_num_str = num_str
+                if start_num_str:
+                    break
+            elif end_ind < num_start and num_start - end_ind < end_dist:
+                end_dist = num_start - end_ind
+                end_cand = num_str
+        
+        if not start_num_str:
+            start_num_str = start_cand
+        if not end_num_str:
+            end_num_str = end_cand   
+            
+        start_match = num_match_re.search(start_num_str).group()  
+        end_match = num_match_re.search(end_num_str).group()
         start_num = float(start_match)
         end_num = float(end_match)
-        final_num = start_num + end_num if plus else start_num - end_num
+        
+        if op == 0:
+            final_num = start_num + end_num
+        elif op == 1:
+            final_num = start_num - end_num
+        elif op == 2:
+            final_num = start_num * end_num
+        elif op == 3 and end_num != 0:
+            final_num = start_num / end_num
+        else:
+            return '1'
+        
+        final_num = round(abs(final_num), 1)
         if final_num % 1 == 0:
             final_num = int(final_num)
         return str(final_num)
