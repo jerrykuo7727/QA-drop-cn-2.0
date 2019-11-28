@@ -220,6 +220,18 @@ def find_all_date_durs(p_tokens):
             all_durs.append((ind, dur_match.group()))
     return all_dates, all_durs
 
+def find_all_date_durs_range(tokenizer, date_dur_par_re, date_dur_full_re, p_tokens):
+    all_date_durs = find_all_range(tokenizer, date_dur_par_re, date_dur_full_re, p_tokens)
+    all_dates, all_durs = [], []
+    for ind, ind_end, cand in all_date_durs:
+        date_match = date_re.search(cand)
+        if date_match and date_match.group():
+            all_dates.append((ind, ind_end, date_match.group()))
+        dur_match = dur_re.search(cand)
+        if dur_match and dur_match.group():
+            all_durs.append((ind, ind_end, dur_match.group()))
+    return all_dates, all_durs
+
 def find_date_dur_ind_op(p_tokens, answer):
     all_dates, all_durs = find_all_date_durs(p_tokens)
     ans_date = parse_date_answer(answer)
@@ -326,50 +338,147 @@ def arithmetic_op(tokenizer, num_par_re, num_full_re, num_match_re, all_tokens, 
     except:
         return '1'
     
-def date_duration_op(tokenizer, date_re, dur_re, tn, all_tokens, start_ind, end_ind, plus):
+def date_duration_op(tokenizer, date_dur_par_re, date_dur_full_re, date_re, dur_re, \
+                     tn, all_tokens, start_ind, end_ind, op):
     try:
-        start_cand = tokenizer.convert_tokens_to_string(all_tokens[start_ind:]).replace(' ', '')
-        raw_date = date_re.search(start_cand).group()
-        end_cand = tokenizer.convert_tokens_to_string(all_tokens[end_ind:]).replace(' ', '')
-        raw_dur = dur_re.search(end_cand).group()
+        start_dist, start_cand, start_str = 1000, None, None
+        end_dist, end_cand, end_str = 1000, None, None
+        all_dates, all_durs = find_all_date_durs_range(tokenizer, date_dur_par_re, date_dur_full_re, all_tokens)
+        if op in (0, 1):
+            for i, pair in enumerate(all_dates):
+                date_start, date_end, date_str = pair
+                # Start
+                if start_ind in range(date_start, date_end):
+                    start_str = date_str
+                    if end_str:
+                        break
+                elif start_ind < date_start and date_start - start_ind < start_dist:
+                    start_dist = date_start - start_ind
+                    start_cand = date_str
+                # End
+                if end_ind in range(date_start, date_end):
+                    end_str = date_str
+                    if start_str:
+                        break
+                elif end_ind < date_start and date_start - date_end < end_dist:
+                    end_dist = date_start - date_end
+                    end_cand = date_str
+        elif op == 2:
+            # Start
+            for i, pair in enumerate(all_dates):
+                date_start, date_end, date_str = pair
+                if start_ind in range(date_start, date_end):
+                    start_str = date_str
+                    break
+                elif start_ind < date_start and date_start - start_ind < start_dist:
+                    start_dist = date_start - start_ind
+                    start_cand = date_str
+            # End
+            for i, pair in enumerate(all_durs):
+                date_start, date_end, date_str = pair
+                if end_ind in range(date_start, date_end):
+                    end_str = date_str
+                    break
+                elif end_ind < date_start and date_start - date_end < end_dist:
+                    end_dist = date_start - date_end
+                    end_cand = date_str
+        else:
+            return '1月'
 
-        # Parse date
-        timestamp = json.loads(tn.parse(raw_date, timeBase='2018-12-31'))['timestamp']
-        src_date = date(*map(int, timestamp.split()[0].split('-')))
+        if not start_str:
+            start_str = start_cand
+        if not end_str:
+            end_str = end_cand   
 
-        # Parse duration
-        num_str = num_re.search(raw_dur).group()
-        try: num = int(num_str)
-        except: num = chinese2int(num_str)
-        if not plus: num *= -1
+        if op in (0,1):
+            raw_date = date_re.search(start_str).group()
+            raw_dur = dur_re.search(end_str).group()
 
-        # Date +/- duration
-        if any(raw_dur.endswith(c) for c in ('年', '岁')):
-            tgt_date = add_years(src_date, num)
-        if raw_dur.endswith('月'):
-            tgt_date = add_months(src_date, num)
-        if raw_dur.endswith('周'):
-            tgt_date = add_days(src_date, num * 7)
-        if any(raw_dur.endswith(c) for c in ('日', '天')):
-            tgt_date = add_days(src_date, num)
+            # Parse date
+            try:
+                timestamp = json.loads(tn.parse(raw_date, timeBase='2018-12-31'))['timestamp']
+                src_date = date(*map(int, timestamp.split()[0].split('-')))
+            except:
+                if raw_date.endswith('年'):
+                    try: year = raw_date[:-1]
+                    except: year = chinese2int(raw_date[:-1])
+                    if year in range(1, 10000):
+                        src_date = date(year, 1, 1)
+                    else: return '1月'
+                else: return '1月'
 
-        # Clean unexist units
-        tgt_year, tgt_month, tgt_day = tgt_date.year, tgt_date.month, tgt_date.day
-        if tgt_year == 9999: tgt_year = tgt_month = tgt_day = None
-        if '年' not in raw_date: tgt_year = None
-        if '月' not in raw_date: tgt_month = None
-        if all(c not in raw_date for c in ('日', '号')): tgt_day = None
+            # Parse duration
+            num_str = num_re.search(raw_dur).group()
+            try: num = int(num_str)
+            except: num = chinese2int(num_str)
+            if op == 1: num *= -1
 
-        # Formatter
-        final_date = ''
-        if tgt_year:
-            final_date += '%d年' % tgt_year
-        if tgt_month:
-            final_date += '%d月' % tgt_month
-        if tgt_day:
-            final_date += '%d日' % tgt_day
-        if final_date:
-            return final_date
+            # Date +/- duration
+            if any(raw_dur.endswith(c) for c in ('年', '岁')):
+                tgt_date = add_years(src_date, num)
+            if raw_dur.endswith('月'):
+                tgt_date = add_months(src_date, num)
+            if raw_dur.endswith('周'):
+                tgt_date = add_days(src_date, num * 7)
+            if any(raw_dur.endswith(c) for c in ('日', '天')):
+                tgt_date = add_days(src_date, num)
+
+            # Clean unexist units
+            tgt_year, tgt_month, tgt_day = tgt_date.year, tgt_date.month, tgt_date.day
+            if tgt_year == 9999: tgt_year = tgt_month = tgt_day = None
+            if '年' not in raw_date: tgt_year = None
+            if '月' not in raw_date: tgt_month = None
+            if all(c not in raw_date for c in ('日', '号')): tgt_day = None
+
+            # Formatter
+            final_date = ''
+            if tgt_year:
+                final_date += '%d年' % tgt_year
+            if tgt_month:
+                final_date += '%d月' % tgt_month
+            if tgt_day:
+                final_date += '%d日' % tgt_day
+            if final_date:
+                return final_date
+            else:
+                return '1月'
+        elif op == 2:
+            raw_date_1 = date_re.search(start_str).group()
+            raw_date_2 = date_re.search(end_str).group()
+
+            # Parse date
+            try:
+                timestamp = json.loads(tn.parse(raw_date_1, timeBase='2018-12-31'))['timestamp']
+                src_date = date(*map(int, timestamp.split()[0].split('-')))
+            except:
+                if raw_date_1.endswith('年'):
+                    try: year = raw_date_1[:-1]
+                    except: year = chinese2int(raw_date_1[:-1])
+                    if year in range(1, 10000):
+                        src_date = date(year, 1, 1)
+                    else: return '1月'
+                else: return '1月'
+            try:
+                timestamp = json.loads(tn.parse(raw_date_2, timeBase='2018-12-31'))['timestamp']
+                tgt_date = date(*map(int, timestamp.split()[0].split('-')))
+            except:
+                if raw_date_2.endswith('年'):
+                    try: year = raw_date_2[:-1]
+                    except: year = chinese2int(raw_date_2[:-1])
+                    if year in range(1, 10000):
+                        tgt_date = date(year, 1, 1)
+                    else: return '1月'
+                else: return '1月'
+
+            # Date - date
+            diff_days = abs((tgt_date - src_date).days)
+            if raw_date_1.endswith('年') or raw_date_2.endswith('年'):
+                final_dur = '%d年' % (diff_days // 365)
+            elif raw_date_1.endswith('月') or raw_date_2.endswith('月'):
+                final_dur = '%d月' % (diff_days // 30)
+            else:
+                final_dur = '%d日' % diff_days
+            return final_dur
         else:
             return '1月'
     except:
@@ -495,10 +604,10 @@ if __name__ == '__main__':
                     else: continue
 
                 #### FILTER ####
-                if op_type not in (1,2,3,4):
+                if op_type not in (5,6,7):
                     continue
                 else:
-                    op_type -= 1
+                    op_type -= 5
                 ################
 
                 # Save processed data
