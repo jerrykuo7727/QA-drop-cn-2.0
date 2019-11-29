@@ -146,7 +146,7 @@ def validate_dataset(model, split, tokenizer, topk=5):
 
         start_index = outputs[1]
         end_index = outputs[3].view(-1, model.end_n_top, model.start_n_top).permute([0,2,1])[:,:,0]
-        for answer in answers:
+        for i, answer in enumerate(answers):
             preds = []
             for k in range(model.start_n_top):
                 op_type = op_types[i]
