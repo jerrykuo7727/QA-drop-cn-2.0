@@ -136,7 +136,8 @@ if __name__ == '__main__':
     model_path = sys.argv[2]
     tokenizer = XLNetTokenizer.from_pretrained(model_path)
     model = XLNetForSequenceClassification.from_pretrained(model_path)
-
+    ckpt = torch.load('models/xlnet-only.ckpt', 'cpu')
+    model.transformer.load_state_dict(ckpt)
     device = torch.device(sys.argv[1])
     model.to(device)
 

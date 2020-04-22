@@ -204,6 +204,8 @@ if __name__ == '__main__':
     dataset = sys.argv[4:]
     model_path = sys.argv[2]
     model = XLNetForQuestionAnswering.from_pretrained(model_path)
+    ckpt = torch.load('models/finetune.ckpt')
+    model.load_state_dict(ckpt)
     device = torch.device(sys.argv[1])
     model.to(device)
 
